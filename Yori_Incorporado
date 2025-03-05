@@ -1,0 +1,351 @@
+package Yori_Incorporado;
+import robocode.*;
+import java.awt.geom.*;
+import robocode.util.*;
+import java.awt.*;
+
+
+		public class Yori_Incorporado extends AdvancedRobot {
+
+	int FORWARD = 1;
+	Inimigo[] data; 
+	int posicao;
+	int count;
+	String Atualposicao;
+	double mudancadaenergia;
+	int movidirecao = 1;
+	double Previsaoenergia = 100;
+
+
+		public class Inimigo {
+	
+	public String Nome; 
+	public int AcertouComTecnica1 = 2;
+	public int AcertouComTecnica2 = 1;
+	public int AcertouComTecnica3 = 1;
+	public int AtualTecnica = 1;
+}
+
+		public void run() { 
+		
+{
+setAhead(360);
+setTurnRight(360);   
+setTurnLeft(360);
+setBack(100);}
+	 
+	setAdjustRadarForGunTurn(true);
+	setAdjustRadarForRobotTurn(true); 
+
+	data = new Inimigo[15];
+	count = 0;
+	for (int a = 0; a < 15; a++) {
+		data[a] = new Inimigo();
+		data[a].Nome = "";
+	}
+	
+	setBodyColor(Color.red);
+	setGunColor(Color.red);
+	setRadarColor(Color.white);
+	setBulletColor(Color.white);
+	setScanColor(Color.white);
+	
+	setAdjustRadarForGunTurn(true);
+	setAdjustRadarForRobotTurn(true);
+	setAdjustGunForRobotTurn(true);
+
+	while (true) { 
+		turnRadarRight(360); 
+		
+	}
+}
+
+
+		public void onHitRobot(HitRobotEvent e) { 		
+	
+	if (e.getBearing() > -90 && e.getBearing() < 45) {  	
+		setBack(40); 
+	} else {
+		setAhead(90); 
+	}
+}
+
+
+		public void onScannedRobot(ScannedRobotEvent e) {
+
+
+	Atualposicao = e.getName(); 
+	if (Verificarinimigo(e.getName()) == -1) {
+		System.out.println(count);
+		data[count] = new Inimigo();
+		data[count].Nome = e.getName();
+		posicao = count;
+		count++;
+	} else {
+
+		posicao = Verificarinimigo(e.getName());
+
+	}
+	
+	
+	
+	double bulletPower;
+	
+	
+	if (e.getDistance() < 100) { 
+		bulletPower = 3.0; 
+	} else if (e.getDistance() > 150 && e.getDistance() < 400) {
+		bulletPower = 2.0; 
+	} else {
+		bulletPower = 1.0; 
+	}
+
+
+	int x1Acerto = 0;
+	if ((getOthers() > 1) || (x1Acerto < 3) || x1Acerto >= 8) {
+
+		
+		if (getDistanceRemaining() == 0) {
+			FORWARD = -FORWARD; 
+			setAhead(100 * FORWARD); 
+		}
+		setTurnRightRadians(e.getBearingRadians() + Math.PI / 2 - 0.5236 
+				* FORWARD * (e.getDistance() > 150 ? 1 : -1));
+		
+	}
+
+	else { 
+		
+		if ((x1Acerto >= 3) && (getOthers() == 1)) {
+
+			setTurnRight(e.getBearing() + 55 - 55 * movidirecao);
+
+			mudancadaenergia = Previsaoenergia - e.getEnergy();
+			if (mudancadaenergia > 0 && mudancadaenergia <= 3) {
+
+				movidirecao = -movidirecao; 
+				setAhead((e.getDistance() / 8 + 25.0) * movidirecao);
+			}
+
+		}
+
+	}
+	int tecnicafaz = VerificaTecnica();
+
+	if (getOthers() > 1) {
+		tecnicafaz = 1;
+	}
+	System.out.println("Tecnica atual: " + tecnicafaz + "No alvo: "
+			+ e.getName());
+	if (tecnicafaz == 1) {
+		LinearTargeting(e, bulletPower);
+		fire(bulletPower);
+	} else if (tecnicafaz == 2) {
+		CircularTargeting(e, bulletPower);
+		fire(bulletPower);
+	} else {
+		HeadOnTargeting(e, bulletPower);
+		fire(bulletPower);
+	}
+
+	Previsaoenergia = e.getEnergy();
+
+}
+
+		public void LinearTargeting(ScannedRobotEvent e, double bulletPower)
+
+{
+	
+
+	double myX = getX();
+	double myY = getY();
+	double absoluteBearing = getHeadingRadians() + e.getBearingRadians();
+	double InimigoX = getX() + e.getDistance() * Math.sin(absoluteBearing);
+	double InimigoY = getY() + e.getDistance() * Math.cos(absoluteBearing);
+	double InimigoHeading = e.getHeadingRadians();
+	double InimigoVelocity = e.getVelocity();
+
+	double deltaTime = 0;
+	double battleFieldHeight = getBattleFieldHeight(), battleFieldWidth = getBattleFieldWidth();
+	double predictedX = InimigoX, predictedY = InimigoY;
+	while ((++deltaTime) * (20.0 - 3.0 * bulletPower) < Point2D.Double
+			.distance(myX, myY, predictedX, predictedY)) {
+		predictedX += Math.sin(InimigoHeading) * InimigoVelocity;
+		predictedY += Math.cos(InimigoHeading) * InimigoVelocity;
+		if (predictedX < 23.0 || predictedY < 23.0
+				|| predictedX > battleFieldWidth - 23.0
+				|| predictedY > battleFieldHeight - 23.0) {
+			predictedX = Math.min(Math.max(23.0, predictedX),
+					battleFieldWidth - 23.0);
+			predictedY = Math.min(Math.max(23.0, predictedY),
+					battleFieldHeight - 23.0);
+			break;
+		}
+	}
+	double theta = Utils.normalAbsoluteAngle(Math.atan2(
+			predictedX - getX(), predictedY - getY()));
+
+	setTurnRadarRightRadians(Utils.normalRelativeAngle(absoluteBearing
+			- getRadarHeadingRadians()));
+	setTurnGunRightRadians(Utils.normalRelativeAngle(theta
+			- getGunHeadingRadians()));
+}
+
+		public void CircularTargeting(ScannedRobotEvent e, double bulletPower)
+{
+
+	
+
+	double myX = getX();
+	double myY = getY();
+	double oldInimigoHeading = 0;
+	double absoluteBearing = getHeadingRadians() + e.getBearingRadians();
+	double InimigoX = getX() + e.getDistance() * Math.sin(absoluteBearing);
+	double InimigoY = getY() + e.getDistance() * Math.cos(absoluteBearing);
+	double InimigoHeading = e.getHeadingRadians();
+	double InimigoHeadingChange = InimigoHeading - oldInimigoHeading;
+	double InimigoVelocity = e.getVelocity();
+	oldInimigoHeading = InimigoHeading;
+
+	double deltaTime = 0;
+	double battleFieldHeight = getBattleFieldHeight(), battleFieldWidth = getBattleFieldWidth();
+	double predictedX = InimigoX, predictedY = InimigoY;
+	while ((++deltaTime) * (20.0 - 3.0 * bulletPower) < Point2D.Double
+			.distance(myX, myY, predictedX, predictedY)) {
+		predictedX += Math.sin(InimigoHeading) * InimigoVelocity;
+		predictedY += Math.cos(InimigoHeading) * InimigoVelocity;
+		InimigoHeading += InimigoHeadingChange;
+		if (predictedX < 23.0 || predictedY < 23.0
+				|| predictedX > battleFieldWidth - 23.0
+				|| predictedY > battleFieldHeight - 23.0) {
+
+			predictedX = Math.min(Math.max(23.0, predictedX),
+					battleFieldWidth - 23.0);
+			predictedY = Math.min(Math.max(23.0, predictedY),
+					battleFieldHeight - 23.0);
+			break;
+		}
+	}
+	double theta = Utils.normalAbsoluteAngle(Math.atan2(
+			predictedX - getX(), predictedY - getY()));
+
+	setTurnRadarRightRadians(Utils.normalRelativeAngle(absoluteBearing
+			- getRadarHeadingRadians()));
+	setTurnGunRightRadians(Utils.normalRelativeAngle(theta
+			- getGunHeadingRadians()));
+
+}
+
+public void HeadOnTargeting(ScannedRobotEvent e, double bulletpower)
+
+{
+
+
+
+	double absoluteBearing = getHeadingRadians() + e.getBearingRadians();
+
+	setTurnGunRightRadians(robocode.util.Utils
+			.normalRelativeAngle(absoluteBearing - getGunHeadingRadians()));
+}
+
+public int Verificarinimigo(String Nome)
+
+{
+	for (int i = 0; i < 15; i++) {
+		if (data[i].Nome.equals(Nome)) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+public int VerificaTecnica(){
+
+
+	int tecnica1 = data[posicao].AcertouComTecnica1;
+	int tecnica2 = data[posicao].AcertouComTecnica2;
+	int tecnica3 = data[posicao].AcertouComTecnica3;
+
+	if ((tecnica1 >= tecnica2) && (tecnica1 >= tecnica3)) {
+		data[posicao].AtualTecnica = 1;
+		return 1;
+	} else if ((tecnica2 > tecnica1) && (tecnica2 >= tecnica3)) {
+		data[posicao].AtualTecnica = 2;
+		return 2;
+	} else {
+		data[posicao].AtualTecnica = 3;
+		return 3;
+	}
+}
+
+public void onBulletHit(BulletHitEvent evento)
+{
+
+
+
+	String AcertouRobo = evento.getName();
+	int alvo;
+	alvo = data[posicao].AtualTecnica;
+	
+	if (Atualposicao.equals(AcertouRobo)) {
+		System.out.println("Acertou alvo: Incrementando tecnica " + alvo);
+		if (alvo == 1) {
+			data[posicao].AcertouComTecnica1++;
+			data[posicao].AcertouComTecnica1++;
+			data[posicao].AcertouComTecnica1++;
+
+		} else if (alvo == 2) {
+			data[posicao].AcertouComTecnica2++;
+			data[posicao].AcertouComTecnica2++;
+			
+		} else {
+			data[posicao].AcertouComTecnica3++;
+			data[posicao].AcertouComTecnica3++;
+			
+		}
+	}
+
+	
+	else {
+		if (alvo == 1) {
+			data[posicao].AcertouComTecnica1--;
+		} else if (alvo == 2) {
+			data[posicao].AcertouComTecnica2--;
+		} else
+			data[posicao].AcertouComTecnica3--;
+	}
+	return;
+
+}
+
+public void onBulletMissed(BulletMissedEvent evento){
+	
+
+
+	int tecnica;
+	tecnica = data[posicao].AtualTecnica;
+	if (tecnica == 1) {
+		data[posicao].AcertouComTecnica1--;
+	} else if (tecnica == 2) {
+		data[posicao].AcertouComTecnica2--;
+	} else
+		data[posicao].AcertouComTecnica3--;
+
+	return;
+}
+
+public void onHitWall(HitWallEvent parede){ 
+
+
+
+
+	if (parede.getBearing() > -90 && parede.getBearing() < 90) { 
+		back(40);
+		setTurnRight(35);
+	} else {
+		ahead(50);
+		setTurnRight(35);
+
+	}
+}
+}
